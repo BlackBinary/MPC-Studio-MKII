@@ -1,61 +1,49 @@
-const midi = require('midi');
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const midi = require("midi");
 
-const portNumber = 0;
+function convertData(originalBuffer) {
+  const convertedBuffer = [];
 
-const messages = {
-  1: {
-    fileName: '1.sysex',
-    metaData: [0x06, 0x3D, 0x20, 0x20, 0x00, 0x00, 0x00, 0x00, 0x4E, 0x02],
-  },
-  2: {
-    fileName: '2.sysex',
-    metaData: [0x03, 0x37, 0x00, 0x20, 0x00, 0x00, 0x3C, 0x00, 0x79, 0x01],
-  },
-  3: {
-    fileName: '3.sysex',
-    metaData: [0x12, 0x67, 0x00, 0x20, 0x3C, 0x00, 0x00, 0x00, 0x33, 0x08],
-  },
-  4: {
-    fileName: '4.sysex',
-    metaData: [0x05, 0x15, 0x00, 0x20, 0x3C, 0x00, 0x3C, 0x00, 0x3B, 0x02],
-  },
-  5: {
-    fileName: '5.sysex',
-    metaData: [0x02, 0x78, 0x00, 0x20, 0x78, 0x00, 0x00, 0x00, 0x42, 0x01],
-  },
-  6: {
-    fileName: '6.sysex',
-    metaData: [0x01, 0x73, 0x20, 0x20, 0x78, 0x00, 0x3C, 0x00, 0x4D, 0x00],
-  },
-};
+  for (let i = 0; i < originalBuffer.length; i += 7) {
+    const group = originalBuffer.slice(i, i + 7);
+    let controlByte = 0;
 
-function sendSysExMessage(portNumber, id, filename, messageMetadata) {
-  // Connect to MIDI device
+    for (let j = 0; j < group.length; j++) {
+      if (group[j] >= 128) {
+        controlByte |= 1 << j;
+        group[j] -= 128;
+      }
+    }
+
+    convertedBuffer.push(controlByte, ...group);
+  }
+
+  return Buffer.from(convertedBuffer);
+}
+
+function sendSysExMessage(portNumber, data) {
   const output = new midi.Output();
   output.openPort(portNumber);
 
-  // Define SysEx message
-  const header = [0xF0, 0x47, 0x7F, 0x4A, 0x04];
-  const data = fs.readFileSync(path.join(__dirname, 'sysex', filename));
+  const messageHeader = [0xf0, 0x47, 0x7f, 0x4a, 0x04];
+  const messageMetadata = [
+    0x06, 0x3d, 0x20, 0x20, 0x00, 0x00, 0x00, 0x00, 0x4e, 0x02,
+  ];
   const messageData = Buffer.concat([
-    Buffer.from(header),
-    Buffer.from([id]),
+    Buffer.from(messageHeader),
     Buffer.from(messageMetadata),
-    data
+    data,
+    Buffer.from([0xf7]),
   ]);
-  const sysexMessage = [0xF0, ...messageData, 0xF7];
 
-  // Send SysEx message
-  output.sendMessage(sysexMessage);
+  output.sendMessage([...messageData]);
 
-  // Close MIDI device connection
   output.closePort();
 }
 
-Object.keys(messages).forEach((id) => {
-  const message = messages[id];
-  sendSysExMessage(portNumber, id, message.fileName, message.metaData);
-});
+(() => {
+  const image = fs.readFileSync("input.png");
+  const sysExBuffer = convertData(Buffer.from(image));
 
+  sendSysExMessage(0, sysExBuffer);
+})();
