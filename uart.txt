@@ -1,0 +1,47 @@
+================================================================================
+Board:        [ACVF] MPC Studio
+Image:        Primary Bootloader, Version: 1.0.0.5
+CPU Speed:    500000000 Hz
+================================================================================
+Checking for Secondary Bootloader update image in flash ................ [FOUND]
+Validating Secondary Bootloader update image ........................... [  OK ]
+Comparing Runtime vs Update Secondary Bootloaders ...................... [ SAME]
+Calling Runtime Secondary Bootloader ................................... [  OK ]
+
+================================================================================
+Board:        [ACVF] MPC Studio
+RP Board:     Rev B
+Image:        Secondary Bootloader, Version: 1.0.0.16
+CPU Speed:    500000000 Hz
+force_update: false
+ack_pending:  false
+================================================================================
+Validating flash .......................................................
+                                                                         [  OK ]
+Calling Application .................................................... [  OK ]
+
+================================================================================
+Board:        [ACVF] MPC Studio
+RP Board:     Rev B
+Image:        Application, Version: 1.41.0.95
+CPU Speed:    500000000 Hz
+================================================================================
+Validating Factory Data ................................................ [  OK ]
+Validating User Data ................................................... [  OK ]
+Initializing and Self-Calibrating ADC 0 ................................ [  OK ]
+Detecting TFT LCD ...................................................... [ URT ]
+Touchstrip ............................................................. [ CAP4]
+MSP430FRAM BSL Driver: Initializing ........... [OK]
+MSP430FRAM BSL Driver: Firmware Updater ....... [FYI]
+MSP430FRAM BSL Driver: Sending BSL Password ... [OK]
+MSP430FRAM BSL Driver: Reading CRC16 .......... [OK]
+ -Address: 0x00C400
+ -Length : 0x003C00
+ -CRC16  : 0x000382
+MSP430FRAM BSL Driver: Firmware Up To Date .... [FYI]
+CapTIvate Host Driver: Initializing ........... [OK]
+Initializing USB Device Drivers ........................................ [  OK ]
+Initializing MIDI Streams .............................................. [  OK ]
+Starting Main Task Loop ................................................ [  OK ]
+Writing New User Data .................................................. [  OK ]
+Writing New User Data .................................................. [  OK ]

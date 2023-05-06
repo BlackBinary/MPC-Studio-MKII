@@ -21,29 +21,53 @@ function convertData(originalBuffer) {
   return Buffer.from(convertedBuffer);
 }
 
-function sendSysExMessage(portNumber, data) {
-  const output = new midi.Output();
-  output.openPort(portNumber);
+function generateMessageMetadata(x, y) {
+  const imageCoordinates = [x, 0x00, y, 0x00];
 
-  const messageHeader = [0xf0, 0x47, 0x7f, 0x4a, 0x04];
-  const messageMetadata = [
-    0x06, 0x3d, 0x20, 0x20, 0x00, 0x00, 0x00, 0x00, 0x4e, 0x02,
+  return [
+    ...[0x06, 0x3d],
+    ...[0x20, 0x20],
+    ...imageCoordinates,
+    ...[0x4e, 0x02],
   ];
-  const messageData = Buffer.concat([
-    Buffer.from(messageHeader),
-    Buffer.from(messageMetadata),
-    data,
-    Buffer.from([0xf7]),
-  ]);
+}
 
-  output.sendMessage([...messageData]);
+function initSysex(output) {
+  function sendPNG(imageData, x, y) {
+    const messageHeader = [0xf0, 0x47, 0x7f, 0x4a, 0x04];
+    const messageMetadata = generateMessageMetadata(x, y);
+  
+    const messageData = Buffer.concat([
+      Buffer.from(messageHeader),
+      Buffer.from(messageMetadata),
+      imageData,
+      Buffer.from([0xf7]),
+    ]);
+  
+    output.sendMessage([...messageData]);
+  }
 
-  output.closePort();
+  return {
+    sendPNG,
+  };
 }
 
 (() => {
-  const image = fs.readFileSync("input.png");
+  const image = fs.readFileSync("x.png");
   const sysExBuffer = convertData(Buffer.from(image));
+  const output = new midi.Output();
+  output.openPort(0);
 
-  sendSysExMessage(0, sysExBuffer);
+  const sysex = initSysex(output);
+
+  // Send the image for 0, 0 and 0, 60 and 0, 120
+  // Send the image for 60, 0 and 60, 60 and 60, 120
+  sysex.sendPNG(sysExBuffer, 0, 0);
+  sysex.sendPNG(sysExBuffer, 60, 0);
+  sysex.sendPNG(sysExBuffer, 120, 0);
+  sysex.sendPNG(sysExBuffer, 0, 60);
+  sysex.sendPNG(sysExBuffer, 60, 60);
+  sysex.sendPNG(sysExBuffer, 120, 60);
+
+  output.closePort();
 })();
