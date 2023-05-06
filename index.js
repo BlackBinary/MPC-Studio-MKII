@@ -1,5 +1,9 @@
 const fs = require("fs");
 const midi = require("midi");
+const sharp = require('sharp');
+
+const inputImagePath = 'input.png';
+const outputFolder = 'output';
 
 function convertData(originalBuffer) {
   const convertedBuffer = [];
@@ -52,22 +56,57 @@ function initSysex(output) {
   };
 }
 
-(() => {
-  const image = fs.readFileSync("x.png");
+function readImage(imagePath) {
+  const image = fs.readFileSync(imagePath);
   const sysExBuffer = convertData(Buffer.from(image));
+  return sysExBuffer;
+}
+
+async function splitImage(imagePath, outputFolder) {
+  // Create the output folder if it doesn't exist
+  if (!fs.existsSync(outputFolder)) {
+    fs.mkdirSync(outputFolder);
+  }
+
+  // Specify the split coordinates for each part
+  const splitCoordinates = [
+    [0, 0, 60, 60],
+    [60, 0, 60, 60],
+    [120, 0, 40, 60],
+    [0, 60, 60, 20],
+    [60, 60, 60, 20],
+    [120, 60, 40, 20],
+  ];
+
+  // Iterate over each split coordinate
+  splitCoordinates.forEach(async (splitCoordinate, i) => {
+    const [left, top, width, height] = splitCoordinate;
+
+    // Extract the split image
+    const splitImage = sharp(imagePath).extract({ left, top, width, height });
+
+    // Save the split image to the output folder
+    await splitImage.toFile(`${outputFolder}/${i}.png`);
+  });
+
+  console.log('Split images created successfully!');
+}
+
+
+(async () => {
+  splitImage(inputImagePath, outputFolder);
+
   const output = new midi.Output();
   output.openPort(0);
 
   const sysex = initSysex(output);
 
-  // Send the image for 0, 0 and 0, 60 and 0, 120
-  // Send the image for 60, 0 and 60, 60 and 60, 120
-  sysex.sendPNG(sysExBuffer, 0, 0);
-  sysex.sendPNG(sysExBuffer, 60, 0);
-  sysex.sendPNG(sysExBuffer, 120, 0);
-  sysex.sendPNG(sysExBuffer, 0, 60);
-  sysex.sendPNG(sysExBuffer, 60, 60);
-  sysex.sendPNG(sysExBuffer, 120, 60);
+  sysex.sendPNG(readImage('output/0.png'), 0, 0);
+  sysex.sendPNG(readImage('output/1.png'), 60, 0);
+  sysex.sendPNG(readImage('output/2.png'), 120, 0);
+  sysex.sendPNG(readImage('output/3.png'), 0, 60);
+  sysex.sendPNG(readImage('output/4.png'), 60, 60);
+  sysex.sendPNG(readImage('output/5.png'), 120, 60);
 
   output.closePort();
 })();
