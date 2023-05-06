@@ -70,7 +70,7 @@ async function generateImage() {
       width: 160,
       height: 80,
       channels: 3,
-      background: { r: 255, g: 255, b: 255 },
+      background: { r: 100, g: 100, b: 100 },
     },
   });
   image.composite([
@@ -127,6 +127,6 @@ function sendChunks(sysex, chunks) {
     const imageChunks = await generateImage();
     console.log("Sending image...");
     sendChunks(sysex, imageChunks);
-  }, 1000);
+  }, 100);
   // output.closePort();
 })();
