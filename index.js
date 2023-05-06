@@ -1,9 +1,8 @@
-const fs = require("fs");
 const midi = require("midi");
-const sharp = require('sharp');
+const sharp = require("sharp");
 
-const inputImagePath = 'input.png';
-const outputFolder = 'output';
+const width = 160;
+const height = 80;
 
 function convertData(originalBuffer) {
   const convertedBuffer = [];
@@ -40,14 +39,14 @@ function initSysex(output) {
   function sendPNG(imageData, x, y) {
     const messageHeader = [0xf0, 0x47, 0x7f, 0x4a, 0x04];
     const messageMetadata = generateMessageMetadata(x, y);
-  
+
     const messageData = Buffer.concat([
       Buffer.from(messageHeader),
       Buffer.from(messageMetadata),
       imageData,
       Buffer.from([0xf7]),
     ]);
-  
+
     output.sendMessage([...messageData]);
   }
 
@@ -56,19 +55,7 @@ function initSysex(output) {
   };
 }
 
-function readImage(imagePath) {
-  const image = fs.readFileSync(imagePath);
-  const sysExBuffer = convertData(Buffer.from(image));
-  return sysExBuffer;
-}
-
-async function splitImage(imagePath, outputFolder) {
-  // Create the output folder if it doesn't exist
-  if (!fs.existsSync(outputFolder)) {
-    fs.mkdirSync(outputFolder);
-  }
-
-  // Specify the split coordinates for each part
+async function generateImage() {
   const splitCoordinates = [
     [0, 0, 60, 60],
     [60, 0, 60, 60],
@@ -78,35 +65,68 @@ async function splitImage(imagePath, outputFolder) {
     [120, 60, 40, 20],
   ];
 
-  // Iterate over each split coordinate
-  splitCoordinates.forEach(async (splitCoordinate, i) => {
-    const [left, top, width, height] = splitCoordinate;
-
-    // Extract the split image
-    const splitImage = sharp(imagePath).extract({ left, top, width, height });
-
-    // Save the split image to the output folder
-    await splitImage.toFile(`${outputFolder}/${i}.png`);
+  const image = sharp({
+    create: {
+      width: 160,
+      height: 80,
+      channels: 3,
+      background: { r: 255, g: 255, b: 255 },
+    },
   });
+  image.composite([
+    {
+      input: Buffer.from(`
+  <svg width="${width}" height="${height}" viewBox="0 0 ${height} ${height}">
+    <text x="50%" y="50%" text-anchor="middle" dy="0.7em" fill="#000">${new Date().toISOString()}</text>
+  </svg>
+  `),
+      top: 0,
+      left: 0,
+    },
+  ]);
 
-  console.log('Split images created successfully!');
+  const buffer = await image.toFormat("png").toBuffer();
+
+  // Iterate over each split coordinate
+  return Promise.all(
+    splitCoordinates.map(async (splitCoordinate, i) => {
+      const [left, top, width, height] = splitCoordinate;
+
+      // Extract the split image
+      const splitImage = sharp(buffer).extract({ left, top, width, height });
+
+      // Save the split image to the output folder
+      return convertData(
+        await splitImage
+          .toFormat("png", {
+            compressionLevel: 9,
+            colours: 8,
+          })
+          .toBuffer()
+      );
+    })
+  );
 }
 
+function sendChunks(sysex, chunks) {
+  sysex.sendPNG(chunks[0], 0, 0);
+  sysex.sendPNG(chunks[1], 60, 0);
+  sysex.sendPNG(chunks[2], 120, 0);
+  sysex.sendPNG(chunks[3], 0, 60);
+  sysex.sendPNG(chunks[4], 60, 60);
+  sysex.sendPNG(chunks[5], 120, 60);
+}
 
 (async () => {
-  splitImage(inputImagePath, outputFolder);
-
   const output = new midi.Output();
   output.openPort(0);
-
   const sysex = initSysex(output);
 
-  sysex.sendPNG(readImage('output/0.png'), 0, 0);
-  sysex.sendPNG(readImage('output/1.png'), 60, 0);
-  sysex.sendPNG(readImage('output/2.png'), 120, 0);
-  sysex.sendPNG(readImage('output/3.png'), 0, 60);
-  sysex.sendPNG(readImage('output/4.png'), 60, 60);
-  sysex.sendPNG(readImage('output/5.png'), 120, 60);
-
-  output.closePort();
+  setInterval(async () => {
+    console.log("Generating image...");
+    const imageChunks = await generateImage();
+    console.log("Sending image...");
+    sendChunks(sysex, imageChunks);
+  }, 1000);
+  // output.closePort();
 })();
